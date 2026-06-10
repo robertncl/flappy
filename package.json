@@ -10,7 +10,6 @@
     "sim": "bun scripts/simulate.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "playwright": "^1.60.0"
+    "@types/bun": "latest"
   }
 }

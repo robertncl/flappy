@@ -375,13 +375,13 @@ function drawHud(): void {
     ctx.globalAlpha = pulse;
     ctx.fillStyle = "#17c97e";
     ctx.beginPath();
-    ctx.roundRect(WIDTH / 2 - 56, 12, 112, 24, 12);
+    ctx.roundRect(WIDTH / 2 - 56, 50, 112, 24, 12);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.font = "700 12px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillStyle = "#05291a";
-    ctx.fillText("AUTOPILOT", WIDTH / 2, 28);
+    ctx.fillText("AUTOPILOT", WIDTH / 2, 66);
   }
 }
 

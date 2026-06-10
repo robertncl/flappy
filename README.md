@@ -4,6 +4,17 @@ A Flappy-Bird-style game built from scratch with [Bun](https://bun.sh), TypeScri
 canvas — no frameworks, no runtime dependencies. Ten handcrafted levels and a built-in
 autopilot bot that can clear the whole campaign (proven by the test suite).
 
+<p align="center">
+  <img src="screenshots/menu.png" width="32%" alt="Main menu" />
+  <img src="screenshots/level-01-first-flight.png" width="32%" alt="Level 1 — First Flight" />
+  <img src="screenshots/level-04-tight-squeeze.png" width="32%" alt="Level 4 — Tight Squeeze" />
+</p>
+<p align="center">
+  <img src="screenshots/level-06-wavy-air.png" width="32%" alt="Level 6 — Wavy Air, oscillating gaps" />
+  <img src="screenshots/level-08-storm-front.png" width="32%" alt="Level 8 — Storm Front, night, autopilot flying" />
+  <img src="screenshots/level-10-impossible-sky.png" width="32%" alt="Level 10 — Impossible Sky, autopilot flying" />
+</p>
+
 ## Run it
 
 ```sh
