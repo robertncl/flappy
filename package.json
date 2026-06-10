@@ -1,0 +1,15 @@
+{
+  "name": "flappy-runs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot server.ts",
+    "start": "bun server.ts",
+    "test": "bun test",
+    "sim": "bun scripts/simulate.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flappy Runs</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: radial-gradient(circle at 50% 30%, #141a33, #0b0e1a 70%);
+        display: grid;
+        place-items: center;
+        font-family: system-ui, sans-serif;
+      }
+      canvas {
+        height: min(96vh, 128vw);
+        aspect-ratio: 3 / 4;
+        border-radius: 10px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+        touch-action: none;
+        user-select: none;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" width="480" height="640" role="img" aria-label="Flappy Runs — a Flappy Bird style game with 10 levels">
+      Flappy Runs is a canvas game and needs JavaScript to run.
+    </canvas>
+    <script type="module" src="../src/client.ts"></script>
+  </body>
+</html>
