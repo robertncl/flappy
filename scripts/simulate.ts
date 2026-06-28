@@ -52,7 +52,7 @@ for (let i = 0; i < LEVELS.length; i++) {
 
 console.log("-".repeat(52));
 console.log(
-  `${allClear ? "All 10 levels cleared" : "Campaign FAILED"} — ` +
+  `${allClear ? `All ${LEVELS.length} levels cleared` : "Campaign FAILED"} — ` +
     `${totalPipes} pipes in ${totalTime.toFixed(1)}s of flight time`,
 );
 process.exit(allClear ? 0 : 1);

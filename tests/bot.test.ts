@@ -17,8 +17,8 @@ function runBotThroughLevel(levelIndex: number): { g: GameState; steps: number }
   return { g, steps };
 }
 
-test("the campaign has exactly 10 levels", () => {
-  expect(LEVELS.length).toBe(10);
+test("the campaign has exactly 15 levels", () => {
+  expect(LEVELS.length).toBe(15);
 });
 
 describe("bot clears every level", () => {

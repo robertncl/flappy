@@ -21,6 +21,16 @@ export interface LevelConfig {
   dark: boolean;
   /** Sky gradient, top to bottom. */
   sky: [string, string];
+  /** Optional pipe palette [light, dark]; defaults derive from `dark`. */
+  pipe?: [string, string];
+  /** Optional ground palette [dirt, grass]; defaults derive from `dark`. */
+  ground?: [string, string];
+  /** Optional distant-hill silhouette colour for parallax depth. */
+  hills?: string;
+  /** Optional falling-particle weather effect. */
+  weather?: "snow" | "rain";
+  /** Optional aurora band colours for night skies, [inner, outer]. */
+  aurora?: [string, string];
 }
 
 export const LEVELS: LevelConfig[] = [
@@ -163,5 +173,92 @@ export const LEVELS: LevelConfig[] = [
     oscFrequency: 0.38,
     dark: true,
     sky: ["#101430", "#2c2f63"],
+  },
+  {
+    id: 11,
+    name: "Aurora",
+    seed: 111,
+    pipesToClear: 16,
+    pipeGap: 150,
+    pipeSpeed: 212,
+    pipeSpacing: 262,
+    maxCenterDelta: 128,
+    oscAmplitude: 38,
+    oscFrequency: 0.36,
+    dark: true,
+    sky: ["#05203a", "#0a3c4a"],
+    pipe: ["#52d0c2", "#1d7a72"],
+    ground: ["#13313a", "#2f7a72"],
+    weather: "snow",
+    aurora: ["#5effb8", "#3aa0ff"],
+  },
+  {
+    id: 12,
+    name: "Crimson Dusk",
+    seed: 121,
+    pipesToClear: 16,
+    pipeGap: 148,
+    pipeSpeed: 218,
+    pipeSpacing: 258,
+    maxCenterDelta: 132,
+    oscAmplitude: 40,
+    oscFrequency: 0.38,
+    dark: true,
+    sky: ["#2a0a1e", "#7a1f33"],
+    pipe: ["#c75b6a", "#7a2433"],
+    ground: ["#321016", "#7a2f38"],
+    hills: "#3d1322",
+  },
+  {
+    id: 13,
+    name: "Frostbite",
+    seed: 131,
+    pipesToClear: 17,
+    pipeGap: 147,
+    pipeSpeed: 222,
+    pipeSpacing: 255,
+    maxCenterDelta: 134,
+    oscAmplitude: 42,
+    oscFrequency: 0.40,
+    dark: false,
+    sky: ["#bfe6ff", "#eaf7ff"],
+    pipe: ["#bfe9ff", "#5a93c4"],
+    ground: ["#d6ecf5", "#9fd0e6"],
+    hills: "#c4dcea",
+    weather: "snow",
+  },
+  {
+    id: 14,
+    name: "Ember Fields",
+    seed: 141,
+    pipesToClear: 18,
+    pipeGap: 145,
+    pipeSpeed: 226,
+    pipeSpacing: 252,
+    maxCenterDelta: 136,
+    oscAmplitude: 44,
+    oscFrequency: 0.41,
+    dark: true,
+    sky: ["#1a0d08", "#5c2410"],
+    pipe: ["#4a4038", "#241d18"],
+    ground: ["#2a1108", "#a8431a"],
+    hills: "#3a1b0e",
+  },
+  {
+    id: 15,
+    name: "The Void",
+    seed: 151,
+    pipesToClear: 20,
+    pipeGap: 143,
+    pipeSpeed: 232,
+    pipeSpacing: 248,
+    maxCenterDelta: 138,
+    oscAmplitude: 46,
+    oscFrequency: 0.43,
+    dark: true,
+    sky: ["#040406", "#150a26"],
+    pipe: ["#7a5cc9", "#39236e"],
+    ground: ["#0a0612", "#3a2a5e"],
+    aurora: ["#9a6cff", "#4a2a9a"],
   },
 ];
