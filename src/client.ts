@@ -19,7 +19,9 @@ import { LEVELS } from "./levels";
 type Phase = "menu" | "playing" | "levelDone" | "dead" | "victory";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
-const ctx = canvas.getContext("2d")!;
+// Opaque context: the game paints every pixel every frame, so an alpha
+// channel would only add compositing work.
+const ctx = canvas.getContext("2d", { alpha: false })!;
 
 let levelIndex = 0;
 let game: GameState = createGame(0);
@@ -133,15 +135,42 @@ function update(): void {
 
 interface Cloud { x: number; y: number; s: number; v: number }
 interface Star { x: number; y: number; r: number; tw: number; hue: string }
-interface Tuft { x: number; h: number; lean: number; shade: number }
+interface Tuft { x: number; h: number; lean: number; color: string }
 interface Speck { x: number; y: number; r: number; a: number }
 interface Flake { x: number; y: number; r: number; speed: number; sway: number; phase: number }
+
+/**
+ * Gradients and colours that are constant for a level. Creating
+ * CanvasGradients per frame is measurable allocation + setup cost, so
+ * everything here is built once in ensureDeco() and reused. Pipe gradients
+ * are defined in pipe-local x (0..PIPE_W) and used under a translate().
+ */
+interface LevelRenderCache {
+  sky: CanvasGradient;
+  pipeBody: CanvasGradient;
+  pipeLip: CanvasGradient;
+  dirt: CanvasGradient;
+  grassBand: CanvasGradient;
+  aurora: [CanvasGradient, CanvasGradient] | null;
+  clouds: CanvasGradient[];
+}
+
 let decoLevel = -1;
 let clouds: Cloud[] = [];
 let stars: Star[] = [];
 let tufts: Tuft[] = [];
 let specks: Speck[] = [];
 let flakes: Flake[] = [];
+let rc: LevelRenderCache | null = null;
+
+// Level-independent gradients, created lazily on first use and kept forever.
+let sunGlow: CanvasGradient | null = null;
+let sunDisc: CanvasGradient | null = null;
+let moonHalo: CanvasGradient | null = null;
+let moonDisc: CanvasGradient | null = null;
+let birdBody: CanvasGradient | null = null;
+let vignetteDark: CanvasGradient | null = null;
+let vignetteLight: CanvasGradient | null = null;
 
 const GRASS_SPAN = WIDTH + 60;
 const STAR_HUES = ["#fdf6d8", "#cfe6ff", "#ffe0e8", "#e2ffe9"];
@@ -163,11 +192,13 @@ function ensureDeco(): void {
     tw: rng() * Math.PI * 2,
     hue: STAR_HUES[(rng() * STAR_HUES.length) | 0]!,
   }));
+  const lvl = game.level;
+  const [dirt, grass] = lvl.ground ?? (lvl.dark ? ["#6e5a3a", "#2f7a44"] : ["#caa157", "#67c357"]);
   tufts = Array.from({ length: 46 }, () => ({
     x: rng() * GRASS_SPAN,
     h: 6 + rng() * 9,
     lean: (rng() * 2 - 1) * 0.5,
-    shade: 0.55 + rng() * 0.45,
+    color: mix(grass, "#0a3a1e", 0.45 - rng() * 0.45),
   }));
   specks = Array.from({ length: 60 }, () => ({
     x: rng() * WIDTH,
@@ -185,6 +216,56 @@ function ensureDeco(): void {
     sway: weather === "snow" ? 0.4 + rng() * 0.8 : 0,
     phase: rng() * Math.PI * 2,
   }));
+
+  // gradients reused every frame for the rest of the level
+  const sky = ctx.createLinearGradient(0, 0, 0, PLAY_H);
+  sky.addColorStop(0, lvl.sky[0]);
+  sky.addColorStop(1, lvl.sky[1]);
+
+  const [light, mid, dark] = pipeColors();
+  const pipeBody = ctx.createLinearGradient(0, 0, PIPE_W, 0);
+  pipeBody.addColorStop(0, dark);
+  pipeBody.addColorStop(0.18, light);
+  pipeBody.addColorStop(0.42, mid);
+  pipeBody.addColorStop(1, dark);
+  const pipeLip = ctx.createLinearGradient(-6, 0, PIPE_W + 6, 0);
+  pipeLip.addColorStop(0, dark);
+  pipeLip.addColorStop(0.2, light);
+  pipeLip.addColorStop(0.5, mid);
+  pipeLip.addColorStop(1, dark);
+
+  const dirtGrad = ctx.createLinearGradient(0, PLAY_H, 0, HEIGHT);
+  dirtGrad.addColorStop(0, mix(dirt, "#000000", 0.05));
+  dirtGrad.addColorStop(1, mix(dirt, "#000000", 0.34));
+  const grassBand = ctx.createLinearGradient(0, PLAY_H, 0, PLAY_H + 16);
+  grassBand.addColorStop(0, mix(grass, "#ffffff", 0.18));
+  grassBand.addColorStop(1, grass);
+
+  let aurora: LevelRenderCache["aurora"] = null;
+  if (lvl.aurora) {
+    aurora = [0, 1].map((i) => {
+      const g = ctx.createLinearGradient(0, 0, 0, PLAY_H * 0.72);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(0.4, lvl.aurora![i]!);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      return g;
+    }) as [CanvasGradient, CanvasGradient];
+  }
+
+  rc = {
+    sky,
+    pipeBody,
+    pipeLip,
+    dirt: dirtGrad,
+    grassBand,
+    aurora,
+    clouds: clouds.map((c) => {
+      const g = ctx.createLinearGradient(0, c.y - 16 * c.s, 0, c.y + 16 * c.s);
+      g.addColorStop(0, "rgba(255,255,255,0.95)");
+      g.addColorStop(1, "rgba(213,228,245,0.7)");
+      return g;
+    }),
+  };
 }
 
 /** Linear blend of two #rrggbb hex colours; returns an rgb() string. */
@@ -200,16 +281,13 @@ function mix(a: string, b: string, t: number): string {
 // --- rendering --------------------------------------------------------------
 
 function drawSky(): void {
-  const [top, bottom] = game.level.sky;
-  const grad = ctx.createLinearGradient(0, 0, 0, PLAY_H);
-  grad.addColorStop(0, top);
-  grad.addColorStop(1, bottom);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  // Only the playfield: the ground fill fully overdraws the bottom strip.
+  ctx.fillStyle = rc!.sky;
+  ctx.fillRect(0, 0, WIDTH, PLAY_H);
 }
 
 function drawAurora(): void {
-  const a = game.level.aurora;
+  const a = rc!.aurora;
   if (!a) return;
   ctx.save();
   ctx.globalCompositeOperation = "screen";
@@ -218,12 +296,8 @@ function drawAurora(): void {
     const t = game.t * 0.25 + i * 2.1;
     const cx = (Math.sin(t) * 0.5 + 0.5) * WIDTH;
     const w = 110 + 36 * Math.sin(t * 1.7 + i);
-    const grad = ctx.createLinearGradient(0, 0, 0, maxY);
-    grad.addColorStop(0, "rgba(0,0,0,0)");
-    grad.addColorStop(0.4, i % 2 ? a[1] : a[0]);
-    grad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.globalAlpha = 0.16;
-    ctx.fillStyle = grad;
+    ctx.fillStyle = a[i % 2]!;
     ctx.beginPath();
     for (let y = 0; y <= maxY; y += 18) {
       const sx = cx + Math.sin(y * 0.012 + t * 2) * 28;
@@ -277,20 +351,22 @@ function drawStars(): void {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // moon: soft halo, shaded disc, a few craters
+  // moon: soft halo, shaded disc, a few craters (gradients cached — fixed spot)
   const mx = WIDTH - 78;
   const my = 78;
-  const halo = ctx.createRadialGradient(mx, my, 8, mx, my, 62);
-  halo.addColorStop(0, "rgba(244,238,203,0.4)");
-  halo.addColorStop(1, "rgba(244,238,203,0)");
-  ctx.fillStyle = halo;
+  if (!moonHalo) {
+    moonHalo = ctx.createRadialGradient(mx, my, 8, mx, my, 62);
+    moonHalo.addColorStop(0, "rgba(244,238,203,0.4)");
+    moonHalo.addColorStop(1, "rgba(244,238,203,0)");
+    moonDisc = ctx.createRadialGradient(mx - 8, my - 8, 4, mx, my, 28);
+    moonDisc.addColorStop(0, "#fbf6d8");
+    moonDisc.addColorStop(1, "#d8d2a8");
+  }
+  ctx.fillStyle = moonHalo;
   ctx.beginPath();
   ctx.arc(mx, my, 62, 0, Math.PI * 2);
   ctx.fill();
-  const disc = ctx.createRadialGradient(mx - 8, my - 8, 4, mx, my, 28);
-  disc.addColorStop(0, "#fbf6d8");
-  disc.addColorStop(1, "#d8d2a8");
-  ctx.fillStyle = disc;
+  ctx.fillStyle = moonDisc!;
   ctx.beginPath();
   ctx.arc(mx, my, 26, 0, Math.PI * 2);
   ctx.fill();
@@ -304,31 +380,31 @@ function drawStars(): void {
 
 function drawClouds(): void {
   ensureDeco();
-  // sun with soft glow
+  // sun with soft glow (gradients cached — fixed spot)
   const sx = WIDTH - 68;
   const sy = 72;
-  const glow = ctx.createRadialGradient(sx, sy, 10, sx, sy, 92);
-  glow.addColorStop(0, "rgba(255,244,200,0.85)");
-  glow.addColorStop(1, "rgba(255,244,200,0)");
-  ctx.fillStyle = glow;
+  if (!sunGlow) {
+    sunGlow = ctx.createRadialGradient(sx, sy, 10, sx, sy, 92);
+    sunGlow.addColorStop(0, "rgba(255,244,200,0.85)");
+    sunGlow.addColorStop(1, "rgba(255,244,200,0)");
+    sunDisc = ctx.createRadialGradient(sx - 6, sy - 6, 4, sx, sy, 30);
+    sunDisc.addColorStop(0, "#fffdf0");
+    sunDisc.addColorStop(1, "#ffe79a");
+  }
+  ctx.fillStyle = sunGlow;
   ctx.beginPath();
   ctx.arc(sx, sy, 92, 0, Math.PI * 2);
   ctx.fill();
-  const disc = ctx.createRadialGradient(sx - 6, sy - 6, 4, sx, sy, 30);
-  disc.addColorStop(0, "#fffdf0");
-  disc.addColorStop(1, "#ffe79a");
-  ctx.fillStyle = disc;
+  ctx.fillStyle = sunDisc!;
   ctx.beginPath();
   ctx.arc(sx, sy, 30, 0, Math.PI * 2);
   ctx.fill();
 
   const span = WIDTH + 240;
-  for (const c of clouds) {
+  for (let i = 0; i < clouds.length; i++) {
+    const c = clouds[i]!;
     const cx = ((((c.x - game.t * game.level.pipeSpeed * c.v) % span) + span) % span) - 120;
-    const grad = ctx.createLinearGradient(0, c.y - 16 * c.s, 0, c.y + 16 * c.s);
-    grad.addColorStop(0, "rgba(255,255,255,0.95)");
-    grad.addColorStop(1, "rgba(213,228,245,0.7)");
-    ctx.fillStyle = grad;
+    ctx.fillStyle = rc!.clouds[i]!;
     ctx.beginPath();
     ctx.ellipse(cx, c.y, 36 * c.s, 15 * c.s, 0, 0, Math.PI * 2);
     ctx.ellipse(cx + 26 * c.s, c.y + 5 * c.s, 26 * c.s, 12 * c.s, 0, 0, Math.PI * 2);
@@ -349,90 +425,76 @@ function pipeColors(): [string, string, string] {
     : ["#54ce6f", "#33a852", "#1f7a3c"];
 }
 
-function pipeGradient(x: number, light: string, mid: string, dark: string): CanvasGradient {
-  const grad = ctx.createLinearGradient(x, 0, x + PIPE_W, 0);
-  grad.addColorStop(0, dark);
-  grad.addColorStop(0.18, light);
-  grad.addColorStop(0.42, mid);
-  grad.addColorStop(1, dark);
-  return grad;
+/** Draw one pipe lip in pipe-local coords (cached gradient, gloss, outline). */
+function drawLip(y: number): void {
+  ctx.beginPath();
+  ctx.roundRect(-6, y, PIPE_W + 12, 20, 5);
+  ctx.fillStyle = rc!.pipeLip;
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillRect(-4, y + 3, PIPE_W + 8, 3);
+  ctx.beginPath();
+  ctx.roundRect(-6, y, PIPE_W + 12, 20, 5);
+  ctx.strokeStyle = "rgba(0,40,15,0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }
 
 function drawPipes(): void {
   const lvl = game.level;
-  const [light, mid, dark] = pipeColors();
   const seg = 26;
   for (const p of game.pipes) {
-    if (p.x > WIDTH + 10 || p.x + PIPE_W < -10) continue;
+    if (p.x + PIPE_W < -10) continue;
+    if (p.x > WIDTH + 10) break; // pipes are sorted by x
     const c = gapCenterAt(p, lvl, game.t);
     const gapTop = c - lvl.pipeGap / 2;
     const gapBot = c + lvl.pipeGap / 2;
 
+    // draw in pipe-local x so the cached gradients line up
+    ctx.save();
+    ctx.translate(p.x, 0);
+
     // bodies (cylindrical gradient)
-    ctx.fillStyle = pipeGradient(p.x, light, mid, dark);
-    ctx.fillRect(p.x, -2, PIPE_W, gapTop + 2);
-    ctx.fillRect(p.x, gapBot, PIPE_W, PLAY_H - gapBot);
+    ctx.fillStyle = rc!.pipeBody;
+    ctx.fillRect(0, -2, PIPE_W, gapTop + 2);
+    ctx.fillRect(0, gapBot, PIPE_W, PLAY_H - gapBot);
 
     // glossy vertical highlight band
     ctx.fillStyle = "rgba(255,255,255,0.16)";
-    ctx.fillRect(p.x + PIPE_W * 0.16, -2, 5, gapTop + 2);
-    ctx.fillRect(p.x + PIPE_W * 0.16, gapBot, 5, PLAY_H - gapBot);
+    ctx.fillRect(PIPE_W * 0.16, -2, 5, gapTop + 2);
+    ctx.fillRect(PIPE_W * 0.16, gapBot, 5, PLAY_H - gapBot);
 
-    // horizontal segment banding for surface texture
+    // horizontal segment banding for surface texture (one batched stroke)
     ctx.strokeStyle = "rgba(0,0,0,0.07)";
     ctx.lineWidth = 1;
-    for (let y = Math.ceil(0 / seg) * seg; y < gapTop - 20; y += seg) {
-      ctx.beginPath();
-      ctx.moveTo(p.x, y);
-      ctx.lineTo(p.x + PIPE_W, y);
-      ctx.stroke();
+    ctx.beginPath();
+    for (let y = 0; y < gapTop - 20; y += seg) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(PIPE_W, y);
     }
     for (let y = Math.ceil((gapBot + 20) / seg) * seg; y < PLAY_H; y += seg) {
-      ctx.beginPath();
-      ctx.moveTo(p.x, y);
-      ctx.lineTo(p.x + PIPE_W, y);
-      ctx.stroke();
+      ctx.moveTo(0, y);
+      ctx.lineTo(PIPE_W, y);
     }
+    ctx.stroke();
 
     // inner rim shadow at the gap edges, for depth
     ctx.fillStyle = "rgba(0,0,0,0.18)";
-    ctx.fillRect(p.x, gapTop - 4, PIPE_W, 4);
-    ctx.fillRect(p.x, gapBot, PIPE_W, 4);
+    ctx.fillRect(0, gapTop - 4, PIPE_W, 4);
+    ctx.fillRect(0, gapBot, PIPE_W, 4);
 
-    // capped lips with their own gradient + top gloss
-    const lipGrad = ctx.createLinearGradient(p.x - 6, 0, p.x + PIPE_W + 6, 0);
-    lipGrad.addColorStop(0, dark);
-    lipGrad.addColorStop(0.2, light);
-    lipGrad.addColorStop(0.5, mid);
-    lipGrad.addColorStop(1, dark);
-    const lip = (y: number): void => {
-      ctx.beginPath();
-      ctx.roundRect(p.x - 6, y, PIPE_W + 12, 20, 5);
-      ctx.fillStyle = lipGrad;
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.22)";
-      ctx.fillRect(p.x - 4, y + 3, PIPE_W + 8, 3);
-      ctx.beginPath();
-      ctx.roundRect(p.x - 6, y, PIPE_W + 12, 20, 5);
-      ctx.strokeStyle = "rgba(0,40,15,0.35)";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    };
-    lip(gapTop - 20);
-    lip(gapBot);
+    drawLip(gapTop - 20);
+    drawLip(gapBot);
+    ctx.restore();
   }
 }
 
 function drawGround(): void {
   ensureDeco();
   const lvl = game.level;
-  const [dirt, grass] = lvl.ground ?? (lvl.dark ? ["#6e5a3a", "#2f7a44"] : ["#caa157", "#67c357"]);
 
   // dirt with vertical shading
-  const dg = ctx.createLinearGradient(0, PLAY_H, 0, HEIGHT);
-  dg.addColorStop(0, mix(dirt, "#000000", 0.05));
-  dg.addColorStop(1, mix(dirt, "#000000", 0.34));
-  ctx.fillStyle = dg;
+  ctx.fillStyle = rc!.dirt;
   ctx.fillRect(0, PLAY_H, WIDTH, GROUND_H);
 
   // scrolling dirt speckles
@@ -448,21 +510,18 @@ function drawGround(): void {
   ctx.globalAlpha = 1;
 
   // grass band with a bright top edge
-  const gg = ctx.createLinearGradient(0, PLAY_H, 0, PLAY_H + 16);
-  gg.addColorStop(0, mix(grass, "#ffffff", 0.18));
-  gg.addColorStop(1, grass);
-  ctx.fillStyle = gg;
+  ctx.fillStyle = rc!.grassBand;
   ctx.fillRect(0, PLAY_H, WIDTH, 16);
   ctx.fillStyle = "rgba(255,255,255,0.25)";
   ctx.fillRect(0, PLAY_H, WIDTH, 2);
 
-  // scrolling grass tufts
+  // scrolling grass tufts (colours precomputed per level)
   const goff = (game.t * lvl.pipeSpeed) % GRASS_SPAN;
   ctx.lineWidth = 2;
   for (const t of tufts) {
     const x = (((t.x - goff) % GRASS_SPAN) + GRASS_SPAN) % GRASS_SPAN;
     if (x > WIDTH + 6) continue;
-    ctx.strokeStyle = mix(grass, "#0a3a1e", 1 - t.shade);
+    ctx.strokeStyle = t.color;
     ctx.beginPath();
     ctx.moveTo(x, PLAY_H + 15);
     ctx.quadraticCurveTo(
@@ -483,12 +542,14 @@ function drawBird(): void {
   ctx.save();
   ctx.translate(BIRD_X, y);
   ctx.rotate(angle);
-  // body with volumetric radial shading
-  const body = ctx.createRadialGradient(-4, -5, 2, 0, 0, BIRD_R + 3);
-  body.addColorStop(0, "#ffe9a0");
-  body.addColorStop(0.55, "#ffd34e");
-  body.addColorStop(1, "#f0ae2a");
-  ctx.fillStyle = body;
+  // body with volumetric radial shading (gradient cached — local coords)
+  if (!birdBody) {
+    birdBody = ctx.createRadialGradient(-4, -5, 2, 0, 0, BIRD_R + 3);
+    birdBody.addColorStop(0, "#ffe9a0");
+    birdBody.addColorStop(0.55, "#ffd34e");
+    birdBody.addColorStop(1, "#f0ae2a");
+  }
+  ctx.fillStyle = birdBody;
   ctx.strokeStyle = "#d9a418";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -571,14 +632,22 @@ function drawWeather(): void {
   ctx.globalAlpha = 1;
 }
 
-function drawVignette(): void {
+function makeVignette(edgeAlpha: number): CanvasGradient {
   const g = ctx.createRadialGradient(
     WIDTH / 2, PLAY_H / 2, PLAY_H * 0.35,
     WIDTH / 2, PLAY_H / 2, PLAY_H * 0.95,
   );
   g.addColorStop(0, "rgba(0,0,0,0)");
-  g.addColorStop(1, game.level.dark ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.15)");
-  ctx.fillStyle = g;
+  g.addColorStop(1, `rgba(0,0,0,${edgeAlpha})`);
+  return g;
+}
+
+function drawVignette(): void {
+  if (game.level.dark) {
+    ctx.fillStyle = (vignetteDark ??= makeVignette(0.38));
+  } else {
+    ctx.fillStyle = (vignetteLight ??= makeVignette(0.15));
+  }
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 }
 
@@ -603,17 +672,15 @@ function shadowText(
   fill: string,
   align: CanvasTextAlign = "left",
 ): void {
+  // Two-pass draw instead of shadowBlur: blur shadows force an expensive
+  // Gaussian pass per fillText, and at these sizes a hard offset reads the same.
   ctx.font = font;
   ctx.textAlign = align;
   ctx.textBaseline = "alphabetic";
-  ctx.shadowColor = "rgba(0,0,0,0.45)";
-  ctx.shadowBlur = 4;
-  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fillText(text, x + 1, y + 2);
   ctx.fillStyle = fill;
   ctx.fillText(text, x, y);
-  ctx.shadowColor = "transparent";
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
 }
 
 function panel(w: number, h: number, cy: number): { x: number; y: number } {
@@ -720,6 +787,7 @@ function drawVictory(): void {
 }
 
 function render(): void {
+  ensureDeco(); // (re)build per-level decorations and gradient cache
   drawSky();
   if (game.level.dark) {
     drawAurora();
