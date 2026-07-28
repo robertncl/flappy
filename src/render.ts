@@ -97,11 +97,13 @@ function ensureDeco(): void {
   }));
   const lvl = game.level;
   const [dirt, grass] = lvl.ground ?? (lvl.dark ? ["#6e5a3a", "#2f7a44"] : ["#caa157", "#67c357"]);
+  // Tufts are darkened shades of the level's own grass colour rather than a
+  // fixed green, so sand/snow/lava grounds get tufts in their own hue.
   tufts = Array.from({ length: 46 }, () => ({
     x: rng() * GRASS_SPAN,
     h: 6 + rng() * 9,
     lean: (rng() * 2 - 1) * 0.5,
-    color: mix(grass, "#0a3a1e", 0.45 - rng() * 0.45),
+    color: mix(grass, "#000000", 0.45 - rng() * 0.4),
   }));
   specks = Array.from({ length: 60 }, () => ({
     x: rng() * WIDTH,

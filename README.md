@@ -43,10 +43,12 @@ bun run dev   # serve with hot reload → http://localhost:3000
 ## The 15 levels
 
 Difficulty ramps via gap size, scroll speed, pipe spacing and — from level 6 — vertically
-oscillating gaps. Levels 8–10 switch to a night palette, then 11–15 each get their own
-theme: Aurora (snow + aurora curtains), Crimson Dusk, Frostbite (icy palette + snow),
-Ember Fields (volcanic) and The Void. Per-level pipe/ground colours, parallax hills,
-weather and aurora are optional fields on each level. Layouts are seeded and deterministic
+oscillating gaps. Every level has its own scenery, running roughly from morning through
+dawn, midday, desert, sunset and lagoon, into rain, then night: Storm Front, Night Run and
+Impossible Sky, then Aurora (snow + aurora curtains), Crimson Dusk, Frostbite (whiteout
+blizzard), Ember Fields (volcanic) and The Void. Sky gradient, pipe and ground colours,
+parallax hills, weather and aurora are all per-level fields — they're purely cosmetic, so
+re-theming a level never changes its layout. Layouts are seeded and deterministic
 (`src/levels.ts`).
 
 ## The bot

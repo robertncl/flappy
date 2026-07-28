@@ -17,22 +17,28 @@ export interface LevelConfig {
   oscAmplitude: number;
   /** Frequency of the gap oscillation, in Hz. */
   oscFrequency: number;
-  /** Night-time palette (stars, darker pipes/ground). */
+  /** Night-time palette: swaps sun+clouds for stars+moon and enables aurora. */
   dark: boolean;
   /** Sky gradient, top to bottom. */
   sky: [string, string];
-  /** Optional pipe palette [light, dark]; defaults derive from `dark`. */
+  /** Pipe palette [light, dark]; defaults derive from `dark`. */
   pipe?: [string, string];
-  /** Optional ground palette [dirt, grass]; defaults derive from `dark`. */
+  /** Ground palette [dirt, grass]; defaults derive from `dark`. */
   ground?: [string, string];
-  /** Optional distant-hill silhouette colour for parallax depth. */
+  /** Distant-hill silhouette colour for parallax depth. */
   hills?: string;
-  /** Optional falling-particle weather effect. */
+  /** Falling-particle weather effect. */
   weather?: "snow" | "rain";
-  /** Optional aurora band colours for night skies, [inner, outer]. */
+  /** Aurora band colours [inner, outer]. Only drawn when `dark` is true. */
   aurora?: [string, string];
 }
 
+/**
+ * Difficulty ramps monotonically (gap shrinks, speed and oscillation grow)
+ * while each level gets its own scenery. The visual fields below are purely
+ * cosmetic — the engine only reads the numeric fields, so re-theming a level
+ * never changes its pipe layout or the bot's route through it.
+ */
 export const LEVELS: LevelConfig[] = [
   {
     id: 1,
@@ -45,8 +51,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 120,
     oscAmplitude: 0,
     oscFrequency: 0,
+    // Clear morning: hazy blue, classic green pipes.
     dark: false,
-    sky: ["#8fd8ff", "#dff4ff"],
+    sky: ["#8fd8ff", "#e8f7ff"],
+    pipe: ["#5fd97a", "#1f7a3c"],
+    ground: ["#c9a05a", "#6ac95c"],
+    hills: "#bfe6c9",
   },
   {
     id: 2,
@@ -59,8 +69,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 135,
     oscAmplitude: 0,
     oscFrequency: 0,
+    // Dawn: rose sky over warm distant ridges.
     dark: false,
-    sky: ["#7fcdf5", "#d6f0ff"],
+    sky: ["#f7a9b8", "#ffe3b0"],
+    pipe: ["#8ed49a", "#357a4d"],
+    ground: ["#c99a63", "#5fb567"],
+    hills: "#e0a08f",
   },
   {
     id: 3,
@@ -73,8 +87,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 150,
     oscAmplitude: 0,
     oscFrequency: 0,
+    // Midday meadow: deep blue overhead, rolling green hills.
     dark: false,
-    sky: ["#6fc3ec", "#cdeaff"],
+    sky: ["#4fb3e8", "#c8ecff"],
+    pipe: ["#6ee08a", "#25864a"],
+    ground: ["#b5843f", "#57bf52"],
+    hills: "#7fc98f",
   },
   {
     id: 4,
@@ -87,8 +105,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 160,
     oscAmplitude: 0,
     oscFrequency: 0,
+    // Desert canyon: sand haze, terracotta pipes, dune crest for "grass".
     dark: false,
-    sky: ["#5fb6e2", "#c2e2f8"],
+    sky: ["#f3c98b", "#fdeccb"],
+    pipe: ["#d98a5a", "#8a4526"],
+    ground: ["#c48d51", "#d9b271"],
+    hills: "#c98b63",
   },
   {
     id: 5,
@@ -101,8 +123,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 165,
     oscAmplitude: 0,
     oscFrequency: 0,
+    // Golden hour: blazing sky, pipes reading as warm silhouettes.
     dark: false,
-    sky: ["#ffb45e", "#ffe2b0"],
+    sky: ["#ff9a4d", "#ffdca8"],
+    pipe: ["#c98a4a", "#5e3418"],
+    ground: ["#7a4a2a", "#c98a3f"],
+    hills: "#a35a35",
   },
   {
     id: 6,
@@ -115,8 +141,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 140,
     oscAmplitude: 20,
     oscFrequency: 0.3,
+    // Tropical lagoon: turquoise water light, pale sand shore.
     dark: false,
-    sky: ["#f48c5c", "#ffc9a0"],
+    sky: ["#38c6d9", "#c8f5f0"],
+    pipe: ["#3fd9a8", "#127a5e"],
+    ground: ["#d9c48f", "#3fc9a0"],
+    hills: "#5fd9c4",
   },
   {
     id: 7,
@@ -129,8 +159,13 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 145,
     oscAmplitude: 28,
     oscFrequency: 0.32,
+    // Overcast downpour: flat grey light, mossy wet pipes.
     dark: false,
-    sky: ["#b06a93", "#eda288"],
+    sky: ["#7a8399", "#c2cbd9"],
+    pipe: ["#6f8a7a", "#2c4a3c"],
+    ground: ["#5a5040", "#4a7a52"],
+    hills: "#8a94a8",
+    weather: "rain",
   },
   {
     id: 8,
@@ -143,8 +178,13 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 145,
     oscAmplitude: 34,
     oscFrequency: 0.35,
+    // Night thunderhead: bruised indigo, cold steel pipes, driving rain.
     dark: true,
-    sky: ["#46498b", "#8a67a3"],
+    sky: ["#1e2340", "#4a3f6b"],
+    pipe: ["#4a7a8a", "#1a3a48"],
+    ground: ["#2a2438", "#3a5a4a"],
+    hills: "#2a2f4a",
+    weather: "rain",
   },
   {
     id: 9,
@@ -157,8 +197,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 140,
     oscAmplitude: 40,
     oscFrequency: 0.38,
+    // Clear starry night: moonlit greens, low navy hills.
     dark: true,
-    sky: ["#222a52", "#46498b"],
+    sky: ["#101a3a", "#3a4a80"],
+    pipe: ["#3a8a6a", "#14503a"],
+    ground: ["#2a2a3a", "#2f6a48"],
+    hills: "#1a2447",
   },
   {
     id: 10,
@@ -171,8 +215,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 130,
     oscAmplitude: 42,
     oscFrequency: 0.38,
+    // High altitude: near-black zenith, indigo pipes, faint blue airglow.
     dark: true,
-    sky: ["#101430", "#2c2f63"],
+    sky: ["#070a1e", "#26306b"],
+    pipe: ["#5a6ec9", "#232f70"],
+    ground: ["#0e1024", "#2a3a70"],
+    aurora: ["#6a9aff", "#2a4aa8"],
   },
   {
     id: 11,
@@ -185,6 +233,7 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 128,
     oscAmplitude: 38,
     oscFrequency: 0.36,
+    // Arctic night: green-blue curtains over ice, drifting snow.
     dark: true,
     sky: ["#05203a", "#0a3c4a"],
     pipe: ["#52d0c2", "#1d7a72"],
@@ -203,11 +252,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 132,
     oscAmplitude: 40,
     oscFrequency: 0.38,
+    // Blood-red horizon fading to near-black overhead.
     dark: true,
-    sky: ["#2a0a1e", "#7a1f33"],
+    sky: ["#2a0a1e", "#8a2338"],
     pipe: ["#c75b6a", "#7a2433"],
     ground: ["#321016", "#7a2f38"],
-    hills: "#3d1322",
+    hills: "#4a1526",
   },
   {
     id: 13,
@@ -220,11 +270,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 134,
     oscAmplitude: 42,
     oscFrequency: 0.40,
+    // Whiteout blizzard: the one bright level this late in the run.
     dark: false,
-    sky: ["#bfe6ff", "#eaf7ff"],
-    pipe: ["#bfe9ff", "#5a93c4"],
-    ground: ["#d6ecf5", "#9fd0e6"],
-    hills: "#c4dcea",
+    sky: ["#bfe6ff", "#f2fbff"],
+    pipe: ["#cff0ff", "#5a93c4"],
+    ground: ["#cfe4ef", "#a8d8ea"],
+    hills: "#cfe2ee",
     weather: "snow",
   },
   {
@@ -238,11 +289,12 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 136,
     oscAmplitude: 44,
     oscFrequency: 0.41,
+    // Volcanic: charred rock pipes over a lava-lit crust.
     dark: true,
-    sky: ["#1a0d08", "#5c2410"],
-    pipe: ["#4a4038", "#241d18"],
-    ground: ["#2a1108", "#a8431a"],
-    hills: "#3a1b0e",
+    sky: ["#1a0d08", "#6b2a10"],
+    pipe: ["#5a4a3a", "#241d18"],
+    ground: ["#2a1108", "#b8481a"],
+    hills: "#3f1c0e",
   },
   {
     id: 15,
@@ -255,10 +307,11 @@ export const LEVELS: LevelConfig[] = [
     maxCenterDelta: 138,
     oscAmplitude: 46,
     oscFrequency: 0.43,
+    // Deep space: violet nebula bands, no horizon to speak of.
     dark: true,
-    sky: ["#040406", "#150a26"],
-    pipe: ["#7a5cc9", "#39236e"],
-    ground: ["#0a0612", "#3a2a5e"],
-    aurora: ["#9a6cff", "#4a2a9a"],
+    sky: ["#030308", "#170a2c"],
+    pipe: ["#8a68d9", "#39236e"],
+    ground: ["#0a0612", "#3f2d66"],
+    aurora: ["#a06cff", "#4a2a9a"],
   },
 ];
