@@ -10,7 +10,7 @@
     "sim": "bun scripts/simulate.ts"
   },
   "devDependencies": {
-    "@types/bun": "1.4.0"
+    "@types/bun": "1.4.2"
   },
   "overrides": {
     "@types/node": "26.2.0"
