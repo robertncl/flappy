@@ -1,14 +1,24 @@
 /**
  * Headless bot run through the whole campaign.
- * Usage: bun run sim
+ * Usage: bun run sim [difficulty]   (e.g. `bun run sim hard`; default normal)
  */
 import { DT, createGame, step } from "../src/engine";
 import { createBot } from "../src/bot";
+import { DIFFICULTIES, NORMAL } from "../src/difficulty";
 import { LEVELS } from "../src/levels";
 
 const MAX_STEPS = 120 * 60;
 
-console.log("Autopilot campaign run\n");
+const arg = process.argv[2];
+const difficulty = arg
+  ? DIFFICULTIES.findIndex((d) => d.name.toLowerCase() === arg.toLowerCase())
+  : NORMAL;
+if (difficulty < 0) {
+  console.error(`Unknown difficulty "${arg}". Pick one of: ${DIFFICULTIES.map((d) => d.name).join(", ")}`);
+  process.exit(2);
+}
+
+console.log(`Autopilot campaign run — ${DIFFICULTIES[difficulty]!.name}\n`);
 console.log(
   "lvl".padEnd(5) +
     "name".padEnd(17) +
@@ -25,7 +35,7 @@ let totalTime = 0;
 
 for (let i = 0; i < LEVELS.length; i++) {
   const level = LEVELS[i]!;
-  const g = createGame(i);
+  const g = createGame(i, difficulty);
   const bot = createBot();
   let flaps = 0;
   let steps = 0;

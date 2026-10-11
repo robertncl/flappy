@@ -1,5 +1,6 @@
 import { DT, createGame, step, type GameState } from "./engine";
 import { createBot } from "./bot";
+import { NORMAL, clampDifficulty } from "./difficulty";
 import { LEVELS } from "./levels";
 
 export type Phase = "menu" | "playing" | "levelDone" | "dead" | "victory";
@@ -11,6 +12,8 @@ export const state = {
   phase: "menu" as Phase,
   phaseT: 0,
   botOn: false,
+  /** Selected difficulty; applies from the next level (re)start. */
+  difficulty: NORMAL,
   bot: createBot(),
   totalScore: 0,
   deaths: 0,
@@ -19,7 +22,7 @@ export const state = {
 
 export function startLevel(i: number): void {
   state.levelIndex = i;
-  state.game = createGame(i);
+  state.game = createGame(i, state.difficulty);
   state.bot = createBot();
   state.phase = "playing";
   state.phaseT = 0;
@@ -37,7 +40,12 @@ export function toMenu(): void {
   state.phase = "menu";
   state.phaseT = 0;
   state.levelIndex = 0;
-  state.game = createGame(0);
+  state.game = createGame(0, state.difficulty);
+}
+
+/** Pick a difficulty (clamped to the valid range). Takes effect on the next level start. */
+export function setDifficulty(d: number): void {
+  state.difficulty = clampDifficulty(d);
 }
 
 export function toggleBot(): void {

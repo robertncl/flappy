@@ -34,6 +34,7 @@ bun run dev   # serve with hot reload → http://localhost:3000
 | Input                  | Action                          |
 | ---------------------- | ------------------------------- |
 | `Space` / click / `↑`  | flap (also start / retry)       |
+| `←` / `→`              | lower / raise difficulty        |
 | `B`                    | toggle the autopilot bot        |
 | `R`                    | restart the current level       |
 | `1`–`9`, `0`           | jump straight to a level (0 = 10) |
@@ -51,6 +52,16 @@ parallax hills, weather and aurora are all per-level fields — they're purely c
 re-theming a level never changes its layout. Layouts are seeded and deterministic
 (`src/levels.ts`).
 
+## Difficulty
+
+The slider under the game (or `←`/`→`) picks one of five settings — Chill, Easy, Normal,
+Hard, Brutal — and remembers it between visits. Each setting scales every level's gap,
+scroll speed, oscillation and gap-to-gap jitter (`src/difficulty.ts`), so the campaign keeps
+its ramp at any setting; Normal plays the levels exactly as authored. A new setting takes
+effect from the next level start or retry. The late levels already push the bot near its
+limit, so Hard and Brutal mostly turn up the speed; the tests check that the bot can still
+clear every level at every setting.
+
 ## The bot
 
 `src/bot.ts` implements a physics-based controller: it "rides" a line just above the
@@ -61,8 +72,9 @@ gap edges across its whole transit window and honors the most restrictive bounds
 Verify it yourself:
 
 ```sh
-bun test      # 20 tests, incl. one per level proving the bot clears it
-bun run sim   # headless campaign run with a per-level report
+bun test             # incl. the bot clearing every level at every difficulty
+bun run sim          # headless campaign run with a per-level report
+bun run sim brutal   # …at a given difficulty
 ```
 
 ## Layout
@@ -72,8 +84,10 @@ server.ts            Bun.serve + HTML import (bundles the client on the fly)
 public/index.html    page shell
 src/engine.ts        deterministic fixed-timestep game engine (no DOM)
 src/levels.ts        the 15 level definitions
+src/difficulty.ts    difficulty settings that scale the levels
 src/bot.ts           autopilot controller
 src/client.ts        canvas renderer, input, level/phase flow
 scripts/simulate.ts  headless bot campaign report
 tests/bot.test.ts    bot + engine tests
+tests/difficulty.test.ts  difficulty scaling + bot at every setting
 ```

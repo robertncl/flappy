@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { BIRD_R, PLAY_H, createGame, step, type GameState, type Pipe } from "../src/engine";
 import { botView, createBot } from "../src/bot";
+import { NORMAL } from "../src/difficulty";
 import { LEVELS, type LevelConfig } from "../src/levels";
 
 /** Generous cap: no level should need more than 2 simulated minutes. */
@@ -123,6 +124,7 @@ describe("botView", () => {
     const g: GameState = {
       level,
       levelIndex: 0,
+      difficulty: NORMAL,
       y: 0,
       vy: 0,
       t: 0,

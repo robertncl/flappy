@@ -10,6 +10,7 @@ import {
   mulberry32,
 } from "./engine";
 import { botView } from "./bot";
+import { DIFFICULTIES } from "./difficulty";
 import { LEVELS } from "./levels";
 import { state } from "./state";
 
@@ -623,6 +624,10 @@ function drawHud(): void {
   const liveScore = totalScore + (phase === "playing" || phase === "dead" ? game.score : 0);
   shadowText(`Score ${liveScore}`, WIDTH - 14, 26, "600 15px system-ui, sans-serif", "#fff", "right");
   shadowText(`Deaths ${deaths}`, WIDTH - 14, 46, "500 13px system-ui, sans-serif", "rgba(255,255,255,0.85)", "right");
+  // The menu shows the pending selection itself; in play, show what this run uses.
+  if (phase !== "menu") {
+    shadowText(DIFFICULTIES[game.difficulty]!.name, WIDTH - 14, 64, "600 12px system-ui, sans-serif", "rgba(255,255,255,0.85)", "right");
+  }
 
   if (botOn) {
     const pulse = 0.75 + 0.25 * Math.sin(phaseT * 5);
@@ -640,8 +645,8 @@ function drawHud(): void {
 }
 
 function drawMenu(): void {
-  const { phaseT } = state;
-  const { y } = panel(390, 330, HEIGHT / 2 - 20);
+  const { phaseT, difficulty } = state;
+  const { y } = panel(390, 350, HEIGHT / 2 - 20);
   shadowText("FLAPPY RUNS", WIDTH / 2, y + 62, "800 42px system-ui, sans-serif", "#ffd34e", "center");
   shadowText(`${LEVELS.length} levels · built-in autopilot`, WIDTH / 2, y + 92, "500 15px system-ui, sans-serif", "#cfe3ff", "center");
   const lines: Array<[string, string]> = [
@@ -649,6 +654,7 @@ function drawMenu(): void {
     ["B", "toggle autopilot bot"],
     ["R", "restart level"],
     ["1–0 · ⇧1–5", "jump to a level"],
+    ["← / →", `difficulty: ${DIFFICULTIES[difficulty]!.name}`],
     ["Esc", "back to this menu"],
   ];
   let ly = y + 136;
@@ -659,7 +665,7 @@ function drawMenu(): void {
   }
   const pulse = 0.55 + 0.45 * Math.sin(phaseT * 3.5);
   ctx.globalAlpha = pulse;
-  shadowText("Press Space to start", WIDTH / 2, y + 304, "700 18px system-ui, sans-serif", "#ffd34e", "center");
+  shadowText("Press Space to start", WIDTH / 2, y + 324, "700 18px system-ui, sans-serif", "#ffd34e", "center");
   ctx.globalAlpha = 1;
 }
 
@@ -693,11 +699,14 @@ function drawDead(): void {
 }
 
 function drawVictory(): void {
-  const { phaseT, totalScore, deaths } = state;
+  const { phaseT, totalScore, deaths, game } = state;
   const { y } = panel(380, 210, HEIGHT / 2 - 40);
   shadowText(`ALL ${LEVELS.length} LEVELS CLEAR!`, WIDTH / 2, y + 58, "800 30px system-ui, sans-serif", "#ffd34e", "center");
   shadowText(`Total score ${totalScore}`, WIDTH / 2, y + 102, "600 19px system-ui, sans-serif", "#fff", "center");
-  shadowText(`Deaths ${deaths}`, WIDTH / 2, y + 130, "500 16px system-ui, sans-serif", "rgba(255,255,255,0.85)", "center");
+  shadowText(
+    `Deaths ${deaths} · ${DIFFICULTIES[game.difficulty]!.name}`,
+    WIDTH / 2, y + 130, "500 16px system-ui, sans-serif", "rgba(255,255,255,0.85)", "center",
+  );
   const pulse = 0.55 + 0.45 * Math.sin(phaseT * 3.5);
   ctx.globalAlpha = pulse;
   shadowText("Space — play again", WIDTH / 2, y + 178, "700 16px system-ui, sans-serif", "#7bf1a8", "center");

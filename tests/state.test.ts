@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { DIFFICULTIES, NORMAL } from "../src/difficulty";
 import { DT } from "../src/engine";
 import { LEVELS } from "../src/levels";
 import {
   action,
+  setDifficulty,
   startCampaign,
   startLevel,
   state,
@@ -63,6 +65,30 @@ describe("toMenu", () => {
     expect(state.phaseT).toBe(0);
     expect(state.totalScore).toBe(12);
     expect(state.deaths).toBe(2);
+  });
+});
+
+describe("setDifficulty", () => {
+  test("clamps to the valid range", () => {
+    setDifficulty(-3);
+    expect(state.difficulty).toBe(0);
+    setDifficulty(99);
+    expect(state.difficulty).toBe(DIFFICULTIES.length - 1);
+    setDifficulty(NaN);
+    expect(state.difficulty).toBe(NORMAL);
+  });
+
+  test("applies from the next level start, not to the game in progress", () => {
+    setDifficulty(NORMAL);
+    startLevel(4);
+    const gap = state.game.level.pipeGap;
+    setDifficulty(0);
+    expect(state.game.difficulty).toBe(NORMAL);
+    expect(state.game.level.pipeGap).toBe(gap);
+    startLevel(4);
+    expect(state.game.difficulty).toBe(0);
+    expect(state.game.level.pipeGap).toBeGreaterThan(gap);
+    setDifficulty(NORMAL);
   });
 });
 
