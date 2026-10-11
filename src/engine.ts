@@ -1,3 +1,4 @@
+import { NORMAL, applyDifficulty } from "./difficulty";
 import { LEVELS, type LevelConfig } from "./levels";
 
 export const WIDTH = 480;
@@ -26,8 +27,11 @@ export interface Pipe {
 export type Status = "playing" | "dead" | "complete";
 
 export interface GameState {
+  /** The level as played: its config already scaled by `difficulty`. */
   level: LevelConfig;
   levelIndex: number;
+  /** Index into DIFFICULTIES this game was created at. */
+  difficulty: number;
   /** Bird vertical position (canvas coords, y grows downward). */
   y: number;
   vy: number;
@@ -60,9 +64,10 @@ export function gapCenterAt(pipe: Pipe, level: LevelConfig, t: number): number {
   );
 }
 
-export function createGame(levelIndex: number): GameState {
-  const level = LEVELS[levelIndex];
-  if (!level) throw new Error(`No such level: ${levelIndex}`);
+export function createGame(levelIndex: number, difficulty = NORMAL): GameState {
+  const base = LEVELS[levelIndex];
+  if (!base) throw new Error(`No such level: ${levelIndex}`);
+  const level = applyDifficulty(base, difficulty);
   const rng = mulberry32(level.seed);
   const minCenter = level.pipeGap / 2 + SPAWN_MARGIN + level.oscAmplitude;
   const maxCenter = PLAY_H - level.pipeGap / 2 - SPAWN_MARGIN - level.oscAmplitude;
@@ -84,6 +89,7 @@ export function createGame(levelIndex: number): GameState {
   return {
     level,
     levelIndex,
+    difficulty,
     y: PLAY_H / 2,
     vy: 0,
     t: 0,

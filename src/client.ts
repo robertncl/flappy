@@ -4,8 +4,10 @@ import { initRenderer, render } from "./render";
 import { update } from "./state";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
+const slider = document.querySelector<HTMLInputElement>("#difficulty")!;
+const sliderOutput = document.querySelector<HTMLOutputElement>("#difficulty-name")!;
 initRenderer(canvas);
-setupInput(canvas);
+setupInput(canvas, slider, sliderOutput);
 
 // --- main loop: fixed-timestep simulation, render once per frame ------------
 

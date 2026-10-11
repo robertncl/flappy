@@ -13,9 +13,16 @@
         display: grid;
         place-items: center;
         font-family: system-ui, sans-serif;
+        color-scheme: dark;
+      }
+      main {
+        display: grid;
+        justify-items: center;
+        gap: 10px;
       }
       canvas {
-        height: min(96vh, 128vw);
+        /* Leave room for the difficulty bar below. */
+        height: min(calc(96vh - 44px), 128vw);
         aspect-ratio: 3 / 4;
         border-radius: 10px;
         box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
@@ -23,12 +30,37 @@
         user-select: none;
         cursor: pointer;
       }
+      .difficulty {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #cfe3ff;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .difficulty input {
+        width: 180px;
+        margin: 0;
+        accent-color: #ffd34e;
+        cursor: pointer;
+      }
+      .difficulty output {
+        min-width: 4.5em;
+        color: #ffd34e;
+      }
     </style>
   </head>
   <body>
-    <canvas id="game" width="480" height="640" role="img" aria-label="Flappy Runs — a Flappy Bird style game with 15 levels">
-      Flappy Runs is a canvas game and needs JavaScript to run.
-    </canvas>
+    <main>
+      <canvas id="game" width="480" height="640" role="img" aria-label="Flappy Runs — a Flappy Bird style game with 15 levels">
+        Flappy Runs is a canvas game and needs JavaScript to run.
+      </canvas>
+      <label class="difficulty">
+        Difficulty
+        <input id="difficulty" type="range" min="0" max="4" step="1" value="2" />
+        <output id="difficulty-name" for="difficulty">Normal</output>
+      </label>
+    </main>
     <script type="module" src="../src/client.ts"></script>
   </body>
 </html>
