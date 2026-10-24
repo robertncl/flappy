@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --hot server.ts",
+    "dev": "NODE_ENV=development bun --hot server.ts",
     "start": "bun server.ts",
     "test": "bun test",
     "sim": "bun scripts/simulate.ts"
@@ -13,6 +13,6 @@
     "@types/bun": "1.4.4"
   },
   "overrides": {
-    "@types/node": "26.2.0"
+    "@types/node": "26.6.5"
   }
 }
