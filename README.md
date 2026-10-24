@@ -27,7 +27,9 @@ bun install   # dev types only
 bun run dev   # serve with hot reload → http://localhost:3000
 ```
 
-`bun run start` serves without hot reload; set `PORT` to change the port.
+`bun run start` serves a production build without hot reload. Both listen on `localhost`
+only; set `HOST=0.0.0.0` to reach the game from other devices (e.g. a phone on your LAN),
+and `PORT` to change the port.
 
 ## Controls
 
