@@ -21,7 +21,7 @@
         gap: 10px;
       }
       canvas {
-        /* Leave room for the difficulty bar below. */
+        /* Leave room for the controls bar below. */
         height: min(calc(96vh - 44px), 128vw);
         aspect-ratio: 3 / 4;
         border-radius: 10px;
@@ -30,16 +30,27 @@
         user-select: none;
         cursor: pointer;
       }
-      .difficulty {
+      .controls {
         display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
         align-items: center;
-        gap: 12px;
+        gap: 8px 20px;
         color: #cfe3ff;
         font-size: 15px;
         font-weight: 600;
       }
+      .difficulty,
+      .language {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .language {
+        gap: 8px;
+      }
       .difficulty input {
-        width: 180px;
+        width: 150px;
         margin: 0;
         accent-color: #ffd34e;
         cursor: pointer;
@@ -48,6 +59,15 @@
         min-width: 4.5em;
         color: #ffd34e;
       }
+      .language select {
+        font: inherit;
+        color: #ffd34e;
+        background: #141a33;
+        border: 1px solid #3a4470;
+        border-radius: 6px;
+        padding: 3px 6px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -55,11 +75,20 @@
       <canvas id="game" width="480" height="640" role="img" aria-label="Flappy Runs — a Flappy Bird style game with 15 levels">
         Flappy Runs is a canvas game and needs JavaScript to run.
       </canvas>
-      <label class="difficulty">
-        Difficulty
-        <input id="difficulty" type="range" min="0" max="4" step="1" value="2" />
-        <output id="difficulty-name" for="difficulty">Normal</output>
-      </label>
+      <div class="controls">
+        <label class="difficulty">
+          <span id="difficulty-label">Difficulty</span>
+          <input id="difficulty" type="range" min="0" max="4" step="1" value="2" />
+          <output id="difficulty-name" for="difficulty">Normal</output>
+        </label>
+        <label class="language">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9s1.3-6.4 3.8-9z" />
+          </svg>
+          <select id="language" aria-label="Language"></select>
+        </label>
+      </div>
     </main>
     <script type="module" src="../src/client.ts"></script>
   </body>

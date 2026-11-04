@@ -4,10 +4,14 @@ import { initRenderer, render } from "./render";
 import { update } from "./state";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
-const slider = document.querySelector<HTMLInputElement>("#difficulty")!;
-const sliderOutput = document.querySelector<HTMLOutputElement>("#difficulty-name")!;
 initRenderer(canvas);
-setupInput(canvas, slider, sliderOutput);
+setupInput({
+  canvas,
+  slider: document.querySelector<HTMLInputElement>("#difficulty")!,
+  sliderOutput: document.querySelector<HTMLOutputElement>("#difficulty-name")!,
+  sliderLabel: document.querySelector<HTMLElement>("#difficulty-label")!,
+  languageSelect: document.querySelector<HTMLSelectElement>("#language")!,
+});
 
 // --- main loop: fixed-timestep simulation, render once per frame ------------
 

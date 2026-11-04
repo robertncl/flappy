@@ -37,6 +37,7 @@ and `PORT` to change the port.
 | ---------------------- | ------------------------------- |
 | `Space` / click / `↑`  | flap (also start / retry)       |
 | `←` / `→`              | lower / raise difficulty        |
+| `L`                    | switch language                 |
 | `B`                    | toggle the autopilot bot        |
 | `R`                    | restart the current level       |
 | `1`–`9`, `0`           | jump straight to a level (0 = 10) |
@@ -72,6 +73,14 @@ effect from the next level start or retry. The late levels already push the bot 
 limit, so Hard and Brutal mostly turn up the speed; the tests check that the bot can still
 clear every level at every setting.
 
+## Languages
+
+The menu, HUD and banners — level and difficulty names included — come in English,
+Español, Français, Deutsch, Português, 日本語 and 简体中文 (`src/i18n.ts`). The game
+starts in your browser's language when it's one of these; pick another from the globe
+menu under the game or press `L`, and it's remembered between visits. Long translations
+shrink to fit their panel rather than overflow.
+
 ## The bot
 
 `src/bot.ts` implements a physics-based controller: it "rides" a line just above the
@@ -96,6 +105,7 @@ src/engine.ts        deterministic fixed-timestep game engine (no DOM)
 src/levels.ts        the 15 level definitions
 src/textures/        procedural per-level textures (pipes, ground, hills, sky, clouds)
 src/difficulty.ts    difficulty settings that scale the levels
+src/i18n.ts          UI translations and browser-language detection
 src/bot.ts           autopilot controller
 src/client.ts        canvas renderer, input, level/phase flow
 scripts/simulate.ts  headless bot campaign report
