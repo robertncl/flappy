@@ -13,6 +13,21 @@ import { botView } from "./bot";
 import { DIFFICULTIES } from "./difficulty";
 import { LEVELS } from "./levels";
 import { state } from "./state";
+import {
+  CLOUD_H,
+  CLOUD_W,
+  GROUND_LIP,
+  GROUND_TILE,
+  HILL_H,
+  HILL_PARALLAX,
+  HILL_PERIOD,
+  LIP_H,
+  LIP_W,
+  TEX_SCALE,
+  buildLevelTextures,
+  paintMoon,
+  type LevelTextures,
+} from "./textures";
 
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
@@ -34,60 +49,82 @@ export function initRenderer(el: HTMLCanvasElement): void {
   window.addEventListener("resize", resizeCanvas);
 }
 
-// --- decorations (clouds / stars), regenerated per level -------------------
+// --- decorations + textures, regenerated per level ---------------------------
 
-interface Cloud { x: number; y: number; s: number; v: number }
+interface Cloud { x: number; y: number; s: number; v: number; sprite: number }
 interface Star { x: number; y: number; r: number; tw: number; hue: string }
-interface Tuft { x: number; h: number; lean: number; color: string }
-interface Speck { x: number; y: number; r: number; a: number }
 interface Flake { x: number; y: number; r: number; speed: number; sway: number; phase: number }
 
 /**
- * Gradients and colours that are constant for a level. Creating
- * CanvasGradients per frame is measurable allocation + setup cost, so
- * everything here is built once in ensureDeco() and reused. Pipe gradients
- * are defined in pipe-local x (0..PIPE_W) and used under a translate().
+ * Everything that is constant for a level. Textures are painted once per
+ * level by src/textures.ts; the patterns wrapping them and the aurora
+ * gradients are built here once too, so frames only blit and fill.
  */
 interface LevelRenderCache {
-  sky: CanvasGradient;
-  pipeBody: CanvasGradient;
-  pipeLip: CanvasGradient;
-  dirt: CanvasGradient;
-  grassBand: CanvasGradient;
+  tex: LevelTextures;
+  /** Pipe body texture, tiled vertically, in pipe-local CSS px. */
+  pipe: CanvasPattern;
+  /** Ground texture, tiled horizontally, in CSS px. */
+  ground: CanvasPattern;
   aurora: [CanvasGradient, CanvasGradient] | null;
-  clouds: CanvasGradient[];
+}
+
+/**
+ * Painted textures by level index: the current level plus, once its banner
+ * is up, the next one. Painting takes tens of ms, so the next level's
+ * textures are painted during the frozen "level clear" pause rather than on
+ * the first frame of play.
+ */
+const texCache = new Map<number, LevelTextures>();
+
+function texturesFor(i: number): LevelTextures {
+  let tex = texCache.get(i);
+  if (!tex) {
+    // Textures are cosmetic, so they come from the authored level, not the
+    // difficulty-scaled copy in game.level.
+    tex = buildLevelTextures(LEVELS[i]!);
+    texCache.set(i, tex);
+  }
+  return tex;
 }
 
 let decoLevel = -1;
 let clouds: Cloud[] = [];
 let stars: Star[] = [];
-let tufts: Tuft[] = [];
-let specks: Speck[] = [];
 let flakes: Flake[] = [];
 let rc: LevelRenderCache | null = null;
 
-// Level-independent gradients, created lazily on first use and kept forever.
+// Level-independent gradients/sprites, created lazily on first use and kept forever.
 let sunGlow: CanvasGradient | null = null;
 let sunDisc: CanvasGradient | null = null;
 let moonHalo: CanvasGradient | null = null;
-let moonDisc: CanvasGradient | null = null;
+let moonSprite: HTMLCanvasElement | null = null;
 let birdBody: CanvasGradient | null = null;
 let vignetteDark: CanvasGradient | null = null;
 let vignetteLight: CanvasGradient | null = null;
 
-const GRASS_SPAN = WIDTH + 60;
 const STAR_HUES = ["#fdf6d8", "#cfe6ff", "#ffe0e8", "#e2ffe9"];
+const MOON_R = 26;
+
+/** A pattern over a TEX_SCALE canvas, scaled back so one texel = 1/TEX_SCALE CSS px. */
+function texPattern(src: HTMLCanvasElement, repeat: string): CanvasPattern {
+  const p = ctx.createPattern(src, repeat)!;
+  p.setTransform(new DOMMatrix([1 / TEX_SCALE, 0, 0, 1 / TEX_SCALE, 0, 0]));
+  return p;
+}
 
 function ensureDeco(): void {
   if (decoLevel === state.levelIndex) return;
   decoLevel = state.levelIndex;
   const { game } = state;
-  const rng = mulberry32(game.level.seed ^ 0x9e3779b9);
-  clouds = Array.from({ length: 6 }, () => ({
+  const lvl = game.level;
+  const rng = mulberry32(lvl.seed ^ 0x9e3779b9);
+  clouds = Array.from({ length: 6 }, (_, i) => ({
     x: rng() * (WIDTH + 240),
     y: 24 + rng() * 210,
     s: 0.7 + rng() * 0.9,
     v: 0.15 + rng() * 0.15,
+    sprite: i % 4,
   }));
   stars = Array.from({ length: 80 }, () => ({
     x: rng() * WIDTH,
@@ -96,23 +133,7 @@ function ensureDeco(): void {
     tw: rng() * Math.PI * 2,
     hue: STAR_HUES[(rng() * STAR_HUES.length) | 0]!,
   }));
-  const lvl = game.level;
-  const [dirt, grass] = lvl.ground ?? (lvl.dark ? ["#6e5a3a", "#2f7a44"] : ["#caa157", "#67c357"]);
-  // Tufts are darkened shades of the level's own grass colour rather than a
-  // fixed green, so sand/snow/lava grounds get tufts in their own hue.
-  tufts = Array.from({ length: 46 }, () => ({
-    x: rng() * GRASS_SPAN,
-    h: 6 + rng() * 9,
-    lean: (rng() * 2 - 1) * 0.5,
-    color: mix(grass, "#000000", 0.45 - rng() * 0.4),
-  }));
-  specks = Array.from({ length: 60 }, () => ({
-    x: rng() * WIDTH,
-    y: PLAY_H + 18 + rng() * (GROUND_H - 22),
-    r: 0.6 + rng() * 1.6,
-    a: 0.05 + rng() * 0.12,
-  }));
-  const weather = game.level.weather;
+  const weather = lvl.weather;
   const n = weather === "snow" ? 90 : weather === "rain" ? 120 : 0;
   flakes = Array.from({ length: n }, () => ({
     x: rng() * WIDTH,
@@ -122,30 +143,6 @@ function ensureDeco(): void {
     sway: weather === "snow" ? 0.4 + rng() * 0.8 : 0,
     phase: rng() * Math.PI * 2,
   }));
-
-  // gradients reused every frame for the rest of the level
-  const sky = ctx.createLinearGradient(0, 0, 0, PLAY_H);
-  sky.addColorStop(0, lvl.sky[0]);
-  sky.addColorStop(1, lvl.sky[1]);
-
-  const [light, mid, dark] = pipeColors();
-  const pipeBody = ctx.createLinearGradient(0, 0, PIPE_W, 0);
-  pipeBody.addColorStop(0, dark);
-  pipeBody.addColorStop(0.18, light);
-  pipeBody.addColorStop(0.42, mid);
-  pipeBody.addColorStop(1, dark);
-  const pipeLip = ctx.createLinearGradient(-6, 0, PIPE_W + 6, 0);
-  pipeLip.addColorStop(0, dark);
-  pipeLip.addColorStop(0.2, light);
-  pipeLip.addColorStop(0.5, mid);
-  pipeLip.addColorStop(1, dark);
-
-  const dirtGrad = ctx.createLinearGradient(0, PLAY_H, 0, HEIGHT);
-  dirtGrad.addColorStop(0, mix(dirt, "#000000", 0.05));
-  dirtGrad.addColorStop(1, mix(dirt, "#000000", 0.34));
-  const grassBand = ctx.createLinearGradient(0, PLAY_H, 0, PLAY_H + 16);
-  grassBand.addColorStop(0, mix(grass, "#ffffff", 0.18));
-  grassBand.addColorStop(1, grass);
 
   let aurora: LevelRenderCache["aurora"] = null;
   if (lvl.aurora) {
@@ -158,38 +155,21 @@ function ensureDeco(): void {
     }) as [CanvasGradient, CanvasGradient];
   }
 
+  const tex = texturesFor(state.levelIndex);
+  for (const k of texCache.keys()) if (k !== state.levelIndex) texCache.delete(k);
   rc = {
-    sky,
-    pipeBody,
-    pipeLip,
-    dirt: dirtGrad,
-    grassBand,
+    tex,
+    pipe: texPattern(tex.pipeBody, "repeat"),
+    ground: texPattern(tex.ground, "repeat-x"),
     aurora,
-    clouds: clouds.map((c) => {
-      const g = ctx.createLinearGradient(0, c.y - 16 * c.s, 0, c.y + 16 * c.s);
-      g.addColorStop(0, "rgba(255,255,255,0.95)");
-      g.addColorStop(1, "rgba(213,228,245,0.7)");
-      return g;
-    }),
   };
-}
-
-/** Linear blend of two #rrggbb hex colours; returns an rgb() string. */
-function mix(a: string, b: string, t: number): string {
-  const pa = parseInt(a.slice(1), 16);
-  const pb = parseInt(b.slice(1), 16);
-  const r = Math.round(((pa >> 16) & 255) + (((pb >> 16) & 255) - ((pa >> 16) & 255)) * t);
-  const g = Math.round(((pa >> 8) & 255) + (((pb >> 8) & 255) - ((pa >> 8) & 255)) * t);
-  const bl = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * t);
-  return `rgb(${r},${g},${bl})`;
 }
 
 // --- rendering --------------------------------------------------------------
 
 function drawSky(): void {
   // Only the playfield: the ground fill fully overdraws the bottom strip.
-  ctx.fillStyle = rc!.sky;
-  ctx.fillRect(0, 0, WIDTH, PLAY_H);
+  ctx.drawImage(rc!.tex.sky, 0, 0, WIDTH, PLAY_H);
 }
 
 function drawAurora(): void {
@@ -222,31 +202,13 @@ function drawAurora(): void {
 
 function drawHills(): void {
   const { game } = state;
-  const color = game.level.hills;
-  if (!color) return;
-  const speed = game.level.pipeSpeed;
-  const layers = [
-    { amp: 32, base: PLAY_H - 22, k: 0.0125, v: 0.16, alpha: 0.5 },
-    { amp: 52, base: PLAY_H - 2, k: 0.0085, v: 0.3, alpha: 0.85 },
-  ];
-  for (const L of layers) {
-    const off = game.t * speed * L.v;
-    ctx.globalAlpha = L.alpha;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(0, PLAY_H);
-    for (let x = 0; x <= WIDTH; x += 10) {
-      const y =
-        L.base -
-        L.amp * (0.5 + 0.5 * Math.sin((x + off) * L.k)) -
-        L.amp * 0.28 * Math.sin((x + off) * L.k * 2.3 + 1);
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(WIDTH, PLAY_H);
-    ctx.closePath();
-    ctx.fill();
+  const layers = rc!.tex.hills;
+  for (let i = 0; i < layers.length; i++) {
+    const off = (game.t * game.level.pipeSpeed * HILL_PARALLAX[i]!) % HILL_PERIOD;
+    const y = PLAY_H - HILL_H;
+    ctx.drawImage(layers[i]!, -off, y, HILL_PERIOD, HILL_H);
+    if (HILL_PERIOD - off < WIDTH) ctx.drawImage(layers[i]!, HILL_PERIOD - off, y, HILL_PERIOD, HILL_H);
   }
-  ctx.globalAlpha = 1;
 }
 
 function drawStars(): void {
@@ -260,31 +222,21 @@ function drawStars(): void {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // moon: soft halo, shaded disc, a few craters (gradients cached — fixed spot)
+  // moon: soft halo, then the pre-painted cratered disc (fixed spot)
   const mx = WIDTH - 78;
   const my = 78;
   if (!moonHalo) {
     moonHalo = ctx.createRadialGradient(mx, my, 8, mx, my, 62);
     moonHalo.addColorStop(0, "rgba(244,238,203,0.4)");
     moonHalo.addColorStop(1, "rgba(244,238,203,0)");
-    moonDisc = ctx.createRadialGradient(mx - 8, my - 8, 4, mx, my, 28);
-    moonDisc.addColorStop(0, "#fbf6d8");
-    moonDisc.addColorStop(1, "#d8d2a8");
+    moonSprite = paintMoon(MOON_R);
   }
   ctx.fillStyle = moonHalo;
   ctx.beginPath();
   ctx.arc(mx, my, 62, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = moonDisc!;
-  ctx.beginPath();
-  ctx.arc(mx, my, 26, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "rgba(176,168,128,0.5)";
-  for (const [dx, dy, r] of [[-8, -4, 4], [6, 3, 5], [2, -9, 3]] as const) {
-    ctx.beginPath();
-    ctx.arc(mx + dx, my + dy, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  const size = MOON_R * 2 + 2;
+  ctx.drawImage(moonSprite!, mx - size / 2, my - size / 2, size, size);
 }
 
 function drawClouds(): void {
@@ -310,50 +262,21 @@ function drawClouds(): void {
   ctx.arc(sx, sy, 30, 0, Math.PI * 2);
   ctx.fill();
 
+  const sprites = rc!.tex.clouds;
   const span = WIDTH + 240;
-  for (let i = 0; i < clouds.length; i++) {
-    const c = clouds[i]!;
+  for (const c of clouds) {
     const cx = ((((c.x - game.t * game.level.pipeSpeed * c.v) % span) + span) % span) - 120;
-    ctx.fillStyle = rc!.clouds[i]!;
-    ctx.beginPath();
-    ctx.ellipse(cx, c.y, 36 * c.s, 15 * c.s, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + 26 * c.s, c.y + 5 * c.s, 26 * c.s, 12 * c.s, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx - 28 * c.s, c.y + 6 * c.s, 22 * c.s, 11 * c.s, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + 4 * c.s, c.y - 9 * c.s, 20 * c.s, 12 * c.s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const w = CLOUD_W * c.s * 0.75;
+    const h = CLOUD_H * c.s * 0.75;
+    ctx.drawImage(sprites[c.sprite]!, cx - w / 2, c.y - h * 0.6, w, h);
   }
-}
-
-function pipeColors(): [string, string, string] {
-  const lvl = state.game.level;
-  if (lvl.pipe) {
-    const [light, dark] = lvl.pipe;
-    return [light, mix(light, dark, 0.5), dark];
-  }
-  return lvl.dark
-    ? ["#2c8c4f", "#1d6b3a", "#14502b"]
-    : ["#54ce6f", "#33a852", "#1f7a3c"];
-}
-
-/** Draw one pipe lip in pipe-local coords (cached gradient, gloss, outline). */
-function drawLip(y: number): void {
-  ctx.beginPath();
-  ctx.roundRect(-6, y, PIPE_W + 12, 20, 5);
-  ctx.fillStyle = rc!.pipeLip;
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.22)";
-  ctx.fillRect(-4, y + 3, PIPE_W + 8, 3);
-  ctx.beginPath();
-  ctx.roundRect(-6, y, PIPE_W + 12, 20, 5);
-  ctx.strokeStyle = "rgba(0,40,15,0.35)";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
 }
 
 function drawPipes(): void {
   const { game } = state;
   const lvl = game.level;
-  const seg = 26;
+  const { pipe, tex } = rc!;
+  ctx.fillStyle = pipe;
   for (const p of game.pipes) {
     if (p.x + PIPE_W < -10) continue;
     if (p.x > WIDTH + 10) break; // pipes are sorted by x
@@ -361,87 +284,37 @@ function drawPipes(): void {
     const gapTop = c - lvl.pipeGap / 2;
     const gapBot = c + lvl.pipeGap / 2;
 
-    // draw in pipe-local x so the cached gradients line up
+    // Bodies: the texture is anchored at each gap edge so it travels with
+    // oscillating pipes instead of sliding under them.
     ctx.save();
-    ctx.translate(p.x, 0);
-
-    // bodies (cylindrical gradient)
-    ctx.fillStyle = rc!.pipeBody;
-    ctx.fillRect(0, -2, PIPE_W, gapTop + 2);
-    ctx.fillRect(0, gapBot, PIPE_W, PLAY_H - gapBot);
-
-    // glossy vertical highlight band
-    ctx.fillStyle = "rgba(255,255,255,0.16)";
-    ctx.fillRect(PIPE_W * 0.16, -2, 5, gapTop + 2);
-    ctx.fillRect(PIPE_W * 0.16, gapBot, 5, PLAY_H - gapBot);
-
-    // horizontal segment banding for surface texture (one batched stroke)
-    ctx.strokeStyle = "rgba(0,0,0,0.07)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let y = 0; y < gapTop - 20; y += seg) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(PIPE_W, y);
-    }
-    for (let y = Math.ceil((gapBot + 20) / seg) * seg; y < PLAY_H; y += seg) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(PIPE_W, y);
-    }
-    ctx.stroke();
+    ctx.translate(p.x, gapTop);
+    ctx.fillRect(0, -gapTop - 2, PIPE_W, gapTop + 2);
+    ctx.translate(0, gapBot - gapTop);
+    ctx.fillRect(0, 0, PIPE_W, PLAY_H - gapBot);
+    ctx.restore();
 
     // inner rim shadow at the gap edges, for depth
-    ctx.fillStyle = "rgba(0,0,0,0.18)";
-    ctx.fillRect(0, gapTop - 4, PIPE_W, 4);
-    ctx.fillRect(0, gapBot, PIPE_W, 4);
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillRect(p.x, gapTop - 6, PIPE_W, 6);
+    ctx.fillRect(p.x, gapBot, PIPE_W, 6);
+    ctx.fillStyle = pipe;
 
-    drawLip(gapTop - 20);
-    drawLip(gapBot);
-    ctx.restore();
+    ctx.drawImage(tex.lip, p.x - 6, gapTop - LIP_H, LIP_W, LIP_H);
+    ctx.drawImage(tex.lip, p.x - 6, gapBot, LIP_W, LIP_H);
   }
 }
 
 function drawGround(): void {
   ensureDeco();
   const { game } = state;
-  const lvl = game.level;
-
-  // dirt with vertical shading
-  ctx.fillStyle = rc!.dirt;
-  ctx.fillRect(0, PLAY_H, WIDTH, GROUND_H);
-
-  // scrolling dirt speckles
-  const off = (game.t * lvl.pipeSpeed) % WIDTH;
-  ctx.fillStyle = "#000";
-  for (const s of specks) {
-    const x = (((s.x - off) % WIDTH) + WIDTH) % WIDTH;
-    ctx.globalAlpha = s.a;
-    ctx.beginPath();
-    ctx.arc(x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  // grass band with a bright top edge
-  ctx.fillStyle = rc!.grassBand;
-  ctx.fillRect(0, PLAY_H, WIDTH, 16);
-  ctx.fillStyle = "rgba(255,255,255,0.25)";
-  ctx.fillRect(0, PLAY_H, WIDTH, 2);
-
-  // scrolling grass tufts (colours precomputed per level)
-  const goff = (game.t * lvl.pipeSpeed) % GRASS_SPAN;
-  ctx.lineWidth = 2;
-  for (const t of tufts) {
-    const x = (((t.x - goff) % GRASS_SPAN) + GRASS_SPAN) % GRASS_SPAN;
-    if (x > WIDTH + 6) continue;
-    ctx.strokeStyle = t.color;
-    ctx.beginPath();
-    ctx.moveTo(x, PLAY_H + 15);
-    ctx.quadraticCurveTo(
-      x + t.lean * 6, PLAY_H + 15 - t.h * 0.6,
-      x + t.lean * 10, PLAY_H + 15 - t.h,
-    );
-    ctx.stroke();
-  }
+  // The texture starts GROUND_LIP above the ground line, so blades, drifts
+  // and rocks overlap the pipe bases; below the line it is fully opaque.
+  const off = (game.t * game.level.pipeSpeed) % GROUND_TILE;
+  ctx.save();
+  ctx.translate(-off, PLAY_H - GROUND_LIP);
+  ctx.fillStyle = rc!.ground;
+  ctx.fillRect(0, 0, WIDTH + GROUND_TILE, GROUND_H + GROUND_LIP);
+  ctx.restore();
 }
 
 function drawBird(): void {
@@ -715,6 +588,7 @@ function drawVictory(): void {
 
 export function render(): void {
   ensureDeco(); // (re)build per-level decorations and gradient cache
+  if (state.phase === "levelDone" && state.phaseT > 0.15) texturesFor(state.levelIndex + 1);
   const { game, phase, botOn } = state;
   drawSky();
   if (game.level.dark) {

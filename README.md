@@ -54,6 +54,14 @@ parallax hills, weather and aurora are all per-level fields — they're purely c
 re-theming a level never changes its layout. Layouts are seeded and deterministic
 (`src/levels.ts`).
 
+Each level also picks a pipe material (`pipeStyle`: enamel, bamboo, adobe, barrel wood,
+mossy stone, riveted steel, copper patina, ice, brick, lava-cracked basalt, crystal) and a
+`terrain` (meadow, desert, beach, marsh, rocky, snow, volcanic, void) that shapes its ground
+and three-layer parallax hills — tree clumps, dunes, palms, snow caps, a smoking volcano.
+These are painted procedurally into offscreen textures when a level loads (`src/textures/`),
+seeded from the level so it always looks the same; frames then just tile and blit them. The
+next level's textures are painted during the "level clear" pause, so play never stutters.
+
 ## Difficulty
 
 The slider under the game (or `←`/`→`) picks one of five settings — Chill, Easy, Normal,
@@ -86,6 +94,7 @@ server.ts            Bun.serve + HTML import (bundles the client on the fly)
 public/index.html    page shell
 src/engine.ts        deterministic fixed-timestep game engine (no DOM)
 src/levels.ts        the 15 level definitions
+src/textures/        procedural per-level textures (pipes, ground, hills, sky, clouds)
 src/difficulty.ts    difficulty settings that scale the levels
 src/bot.ts           autopilot controller
 src/client.ts        canvas renderer, input, level/phase flow

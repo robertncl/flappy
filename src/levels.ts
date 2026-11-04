@@ -1,3 +1,12 @@
+/** Pipe surface material, painted into a per-level texture by src/textures.ts. */
+export type PipeStyle =
+  | "glossy" | "bamboo" | "adobe" | "wood" | "stone" | "steel"
+  | "patina" | "ice" | "brick" | "basalt" | "crystal";
+
+/** Ground surface + hill silhouette style, painted by src/textures.ts. */
+export type Terrain =
+  | "meadow" | "desert" | "beach" | "marsh" | "rocky" | "snow" | "volcanic" | "void";
+
 export interface LevelConfig {
   id: number;
   name: string;
@@ -31,6 +40,10 @@ export interface LevelConfig {
   weather?: "snow" | "rain";
   /** Aurora band colours [inner, outer]. Only drawn when `dark` is true. */
   aurora?: [string, string];
+  /** Pipe material; defaults to "glossy". */
+  pipeStyle?: PipeStyle;
+  /** Ground and hill style; defaults to "meadow". */
+  terrain?: Terrain;
 }
 
 /**
@@ -57,6 +70,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#5fd97a", "#1f7a3c"],
     ground: ["#c9a05a", "#6ac95c"],
     hills: "#bfe6c9",
+    pipeStyle: "glossy",
+    terrain: "meadow",
   },
   {
     id: 2,
@@ -75,6 +90,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#8ed49a", "#357a4d"],
     ground: ["#c99a63", "#5fb567"],
     hills: "#e0a08f",
+    pipeStyle: "glossy",
+    terrain: "meadow",
   },
   {
     id: 3,
@@ -93,6 +110,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#6ee08a", "#25864a"],
     ground: ["#b5843f", "#57bf52"],
     hills: "#7fc98f",
+    pipeStyle: "glossy",
+    terrain: "meadow",
   },
   {
     id: 4,
@@ -111,6 +130,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#d98a5a", "#8a4526"],
     ground: ["#c48d51", "#d9b271"],
     hills: "#c98b63",
+    pipeStyle: "adobe",
+    terrain: "desert",
   },
   {
     id: 5,
@@ -129,6 +150,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#c98a4a", "#5e3418"],
     ground: ["#7a4a2a", "#c98a3f"],
     hills: "#a35a35",
+    pipeStyle: "wood",
+    terrain: "desert",
   },
   {
     id: 6,
@@ -147,6 +170,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#3fd9a8", "#127a5e"],
     ground: ["#d9c48f", "#3fc9a0"],
     hills: "#5fd9c4",
+    pipeStyle: "bamboo",
+    terrain: "beach",
   },
   {
     id: 7,
@@ -166,6 +191,8 @@ export const LEVELS: LevelConfig[] = [
     ground: ["#5a5040", "#4a7a52"],
     hills: "#8a94a8",
     weather: "rain",
+    pipeStyle: "stone",
+    terrain: "marsh",
   },
   {
     id: 8,
@@ -185,6 +212,8 @@ export const LEVELS: LevelConfig[] = [
     ground: ["#2a2438", "#3a5a4a"],
     hills: "#2a2f4a",
     weather: "rain",
+    pipeStyle: "steel",
+    terrain: "rocky",
   },
   {
     id: 9,
@@ -203,6 +232,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#3a8a6a", "#14503a"],
     ground: ["#2a2a3a", "#2f6a48"],
     hills: "#1a2447",
+    pipeStyle: "patina",
+    terrain: "meadow",
   },
   {
     id: 10,
@@ -221,6 +252,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#5a6ec9", "#232f70"],
     ground: ["#0e1024", "#2a3a70"],
     aurora: ["#6a9aff", "#2a4aa8"],
+    pipeStyle: "steel",
+    terrain: "rocky",
   },
   {
     id: 11,
@@ -240,6 +273,8 @@ export const LEVELS: LevelConfig[] = [
     ground: ["#13313a", "#2f7a72"],
     weather: "snow",
     aurora: ["#5effb8", "#3aa0ff"],
+    pipeStyle: "ice",
+    terrain: "snow",
   },
   {
     id: 12,
@@ -258,6 +293,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#c75b6a", "#7a2433"],
     ground: ["#321016", "#7a2f38"],
     hills: "#4a1526",
+    pipeStyle: "brick",
+    terrain: "rocky",
   },
   {
     id: 13,
@@ -277,6 +314,8 @@ export const LEVELS: LevelConfig[] = [
     ground: ["#cfe4ef", "#a8d8ea"],
     hills: "#cfe2ee",
     weather: "snow",
+    pipeStyle: "ice",
+    terrain: "snow",
   },
   {
     id: 14,
@@ -295,6 +334,8 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#5a4a3a", "#241d18"],
     ground: ["#2a1108", "#b8481a"],
     hills: "#3f1c0e",
+    pipeStyle: "basalt",
+    terrain: "volcanic",
   },
   {
     id: 15,
@@ -313,5 +354,7 @@ export const LEVELS: LevelConfig[] = [
     pipe: ["#8a68d9", "#39236e"],
     ground: ["#0a0612", "#3f2d66"],
     aurora: ["#a06cff", "#4a2a9a"],
+    pipeStyle: "crystal",
+    terrain: "void",
   },
 ];
