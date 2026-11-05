@@ -10,7 +10,7 @@ import {
   mulberry32,
 } from "./engine";
 import { botView } from "./bot";
-import { DIFFICULTIES } from "./difficulty";
+import { LANGUAGES, language, strings } from "./i18n";
 import { LEVELS } from "./levels";
 import { state } from "./state";
 import {
@@ -452,6 +452,18 @@ function drawBotAim(): void {
   ctx.restore();
 }
 
+/**
+ * `font` with its px size scaled down just enough for `text` to fit
+ * `maxWidth`. Translations run longer than the English the panels were
+ * sized for, so long strings shrink rather than spill out.
+ */
+function fitFont(text: string, font: string, maxWidth: number): string {
+  ctx.font = font;
+  const w = ctx.measureText(text).width;
+  if (w <= maxWidth) return font;
+  return font.replace(/(\d+(?:\.\d+)?)px/, (_, px: string) => `${((Number(px) * maxWidth) / w).toFixed(1)}px`);
+}
+
 function shadowText(
   text: string,
   x: number,
@@ -459,10 +471,11 @@ function shadowText(
   font: string,
   fill: string,
   align: CanvasTextAlign = "left",
+  maxWidth = Infinity,
 ): void {
   // Two-pass draw instead of shadowBlur: blur shadows force an expensive
   // Gaussian pass per fillText, and at these sizes a hard offset reads the same.
-  ctx.font = font;
+  ctx.font = fitFont(text, font, maxWidth);
   ctx.textAlign = align;
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "rgba(0,0,0,0.45)";
@@ -484,9 +497,10 @@ function panel(w: number, h: number, cy: number): { x: number; y: number } {
 function drawHud(): void {
   const { game, levelIndex, phase, phaseT, totalScore, deaths, botOn } = state;
   const lvl = game.level;
+  const t = strings();
   shadowText(
-    `Level ${levelIndex + 1}/${LEVELS.length} — ${lvl.name}`,
-    14, 26, "600 15px system-ui, sans-serif", "#fff",
+    t.hudLevel(levelIndex + 1, LEVELS.length, t.levels[levelIndex]!),
+    14, 26, "600 15px system-ui, sans-serif", "#fff", "left", 330,
   );
   for (let i = 0; i < lvl.pipesToClear; i++) {
     ctx.fillStyle = i < game.score ? "#ffd34e" : "rgba(255,255,255,0.3)";
@@ -495,11 +509,11 @@ function drawHud(): void {
     ctx.fill();
   }
   const liveScore = totalScore + (phase === "playing" || phase === "dead" ? game.score : 0);
-  shadowText(`Score ${liveScore}`, WIDTH - 14, 26, "600 15px system-ui, sans-serif", "#fff", "right");
-  shadowText(`Deaths ${deaths}`, WIDTH - 14, 46, "500 13px system-ui, sans-serif", "rgba(255,255,255,0.85)", "right");
+  shadowText(t.score(liveScore), WIDTH - 14, 26, "600 15px system-ui, sans-serif", "#fff", "right");
+  shadowText(t.deaths(deaths), WIDTH - 14, 46, "500 13px system-ui, sans-serif", "rgba(255,255,255,0.85)", "right");
   // The menu shows the pending selection itself; in play, show what this run uses.
   if (phase !== "menu") {
-    shadowText(DIFFICULTIES[game.difficulty]!.name, WIDTH - 14, 64, "600 12px system-ui, sans-serif", "rgba(255,255,255,0.85)", "right");
+    shadowText(t.difficulties[game.difficulty]!, WIDTH - 14, 64, "600 12px system-ui, sans-serif", "rgba(255,255,255,0.85)", "right");
   }
 
   if (botOn) {
@@ -510,45 +524,49 @@ function drawHud(): void {
     ctx.roundRect(WIDTH / 2 - 56, 50, 112, 24, 12);
     ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.font = "700 12px system-ui, sans-serif";
+    ctx.font = fitFont(t.autopilot, "700 12px system-ui, sans-serif", 100);
     ctx.textAlign = "center";
     ctx.fillStyle = "#05291a";
-    ctx.fillText("AUTOPILOT", WIDTH / 2, 66);
+    ctx.fillText(t.autopilot, WIDTH / 2, 66);
   }
 }
 
 function drawMenu(): void {
   const { phaseT, difficulty } = state;
-  const { y } = panel(390, 350, HEIGHT / 2 - 20);
+  const t = strings();
+  const langName = LANGUAGES.find((l) => l.code === language())!.name;
+  const { y } = panel(390, 372, HEIGHT / 2 - 20);
   shadowText("FLAPPY RUNS", WIDTH / 2, y + 62, "800 42px system-ui, sans-serif", "#ffd34e", "center");
-  shadowText(`${LEVELS.length} levels · built-in autopilot`, WIDTH / 2, y + 92, "500 15px system-ui, sans-serif", "#cfe3ff", "center");
+  shadowText(t.subtitle(LEVELS.length), WIDTH / 2, y + 92, "500 15px system-ui, sans-serif", "#cfe3ff", "center", 360);
   const lines: Array<[string, string]> = [
-    ["Space / Click / ↑", "flap"],
-    ["B", "toggle autopilot bot"],
-    ["R", "restart level"],
-    ["1–0 · ⇧1–5", "jump to a level"],
-    ["← / →", `difficulty: ${DIFFICULTIES[difficulty]!.name}`],
-    ["Esc", "back to this menu"],
+    [t.keyFlap, t.flap],
+    ["B", t.toggleBot],
+    ["R", t.restart],
+    ["1–0 · ⇧1–5", t.jump],
+    ["← / →", t.difficulty(t.difficulties[difficulty]!)],
+    ["L", t.language(langName)],
+    ["Esc", t.backToMenu],
   ];
   let ly = y + 136;
   for (const [key, what] of lines) {
-    shadowText(key, WIDTH / 2 - 16, ly, "700 15px system-ui, sans-serif", "#fff", "right");
-    shadowText(what, WIDTH / 2 + 2, ly, "400 15px system-ui, sans-serif", "rgba(255,255,255,0.85)");
+    shadowText(key, WIDTH / 2 - 16, ly, "700 15px system-ui, sans-serif", "#fff", "right", 165);
+    shadowText(what, WIDTH / 2 + 2, ly, "400 15px system-ui, sans-serif", "rgba(255,255,255,0.85)", "left", 178);
     ly += 27;
   }
   const pulse = 0.55 + 0.45 * Math.sin(phaseT * 3.5);
   ctx.globalAlpha = pulse;
-  shadowText("Press Space to start", WIDTH / 2, y + 324, "700 18px system-ui, sans-serif", "#ffd34e", "center");
+  shadowText(t.pressStart, WIDTH / 2, y + 346, "700 18px system-ui, sans-serif", "#ffd34e", "center", 360);
   ctx.globalAlpha = 1;
 }
 
 function drawLevelDone(): void {
   const { levelIndex } = state;
+  const t = strings();
   const { y } = panel(340, 130, HEIGHT / 2 - 40);
-  shadowText(`LEVEL ${levelIndex + 1} CLEAR!`, WIDTH / 2, y + 52, "800 30px system-ui, sans-serif", "#7bf1a8", "center");
-  const next = LEVELS[levelIndex + 1];
+  shadowText(t.levelClear(levelIndex + 1), WIDTH / 2, y + 52, "800 30px system-ui, sans-serif", "#7bf1a8", "center", 312);
+  const next = t.levels[levelIndex + 1];
   if (next) {
-    shadowText(`Next: ${next.name}`, WIDTH / 2, y + 92, "500 16px system-ui, sans-serif", "#fff", "center");
+    shadowText(t.next(next), WIDTH / 2, y + 92, "500 16px system-ui, sans-serif", "#fff", "center", 312);
   }
 }
 
@@ -559,30 +577,32 @@ function drawDead(): void {
     ctx.fillStyle = `rgba(255,40,40,${flash})`;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
   }
+  const t = strings();
   const { y } = panel(340, 150, HEIGHT / 2 - 40);
-  shadowText("CRASHED", WIDTH / 2, y + 50, "800 32px system-ui, sans-serif", "#ff7a6b", "center");
+  shadowText(t.crashed, WIDTH / 2, y + 50, "800 32px system-ui, sans-serif", "#ff7a6b", "center", 312);
   shadowText(
-    `at pipe ${Math.min(game.score + 1, game.level.pipesToClear)} of ${game.level.pipesToClear}`,
-    WIDTH / 2, y + 80, "500 15px system-ui, sans-serif", "#fff", "center",
+    t.atPipe(Math.min(game.score + 1, game.level.pipesToClear), game.level.pipesToClear),
+    WIDTH / 2, y + 80, "500 15px system-ui, sans-serif", "#fff", "center", 312,
   );
   shadowText(
-    botOn ? "autopilot retrying…" : "Space — retry · Esc — menu",
-    WIDTH / 2, y + 114, "600 15px system-ui, sans-serif", "#ffd34e", "center",
+    botOn ? t.retrying : t.retryHint,
+    WIDTH / 2, y + 114, "600 15px system-ui, sans-serif", "#ffd34e", "center", 312,
   );
 }
 
 function drawVictory(): void {
   const { phaseT, totalScore, deaths, game } = state;
+  const t = strings();
   const { y } = panel(380, 210, HEIGHT / 2 - 40);
-  shadowText(`ALL ${LEVELS.length} LEVELS CLEAR!`, WIDTH / 2, y + 58, "800 30px system-ui, sans-serif", "#ffd34e", "center");
-  shadowText(`Total score ${totalScore}`, WIDTH / 2, y + 102, "600 19px system-ui, sans-serif", "#fff", "center");
+  shadowText(t.victory(LEVELS.length), WIDTH / 2, y + 58, "800 30px system-ui, sans-serif", "#ffd34e", "center", 352);
+  shadowText(t.totalScore(totalScore), WIDTH / 2, y + 102, "600 19px system-ui, sans-serif", "#fff", "center", 352);
   shadowText(
-    `Deaths ${deaths} · ${DIFFICULTIES[game.difficulty]!.name}`,
-    WIDTH / 2, y + 130, "500 16px system-ui, sans-serif", "rgba(255,255,255,0.85)", "center",
+    t.deathsOn(deaths, t.difficulties[game.difficulty]!),
+    WIDTH / 2, y + 130, "500 16px system-ui, sans-serif", "rgba(255,255,255,0.85)", "center", 352,
   );
   const pulse = 0.55 + 0.45 * Math.sin(phaseT * 3.5);
   ctx.globalAlpha = pulse;
-  shadowText("Space — play again", WIDTH / 2, y + 178, "700 16px system-ui, sans-serif", "#7bf1a8", "center");
+  shadowText(t.playAgain, WIDTH / 2, y + 178, "700 16px system-ui, sans-serif", "#7bf1a8", "center", 352);
   ctx.globalAlpha = 1;
 }
 
